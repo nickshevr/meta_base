@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.140"
+    }
+  }
+}
 resource "yandex_compute_disk" "boot" {
   name     = "${var.name_prefix}-boot"
   type     = var.boot_disk_type
@@ -28,19 +36,19 @@ resource "yandex_compute_instance" "bot" {
   }
 
   network_interface {
-    subnet_id = var.subnet_id
-    nat       = true
+    subnet_id      = var.subnet_id
+    nat            = true
     nat_ip_address = yandex_vpc_address.nat.external_ipv4_address[0].address
   }
 
   metadata = {
     user-data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-      repo_url            = var.repo_url
-      repo_ref            = var.repo_ref
-      app_dir             = var.app_dir
-      data_dir            = var.data_dir
-      telegram_bot_token  = var.telegram_bot_token
-      service_user        = var.service_user
+      repo_url           = var.repo_url
+      repo_ref           = var.repo_ref
+      app_dir            = var.app_dir
+      data_dir           = var.data_dir
+      telegram_bot_token = var.telegram_bot_token
+      service_user       = var.service_user
     })
   }
 }
