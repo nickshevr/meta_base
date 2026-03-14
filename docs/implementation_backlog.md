@@ -3,6 +3,17 @@
 Этот backlog описывает старт работ после утверждения PRD.
 Подход: **быстрый MVP на JSON**, но архитектурно закладываем миграцию на **SQLite**, деплой в **Yandex Cloud** и управление инфраструктурой через **Terraform**.
 
+## Оперативный план действий (что делать первым)
+
+1. Поднять каркас CLI-проекта на Python 3 с type hints и базовыми командами (`import-notes`, `review-extraction`, `weekly-review`, `remind`).
+2. Реализовать JSON-хранилище (`notes.json`, `tasks.json`, `task_events.json`) с атомарной записью.
+3. Подключить импорт markdown/txt и идемпотентность через хеш сырого текста.
+4. Добавить LLM-конвейер: `normalize_note_to_json` + `extract_tasks` с schema validation и retry.
+5. Ввести ручной confirm/edit этап для extracted задач (особенно при low confidence).
+6. Реализовать weekly value-цикл: forgotten detection, weekly priorities, единый markdown-report.
+7. Включить reminders в двух режимах: on-demand и scheduled (cron/systemd).
+8. После стабилизации MVP — подготовить repository abstraction и миграцию JSON → SQLite.
+
 ## 1) Эпик: Core CLI (Python 3 + type hints)
 
 ### 1.1 Bootstrap проекта
