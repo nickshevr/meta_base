@@ -1,0 +1,10 @@
+cloud_id                 = "<your-cloud-id>"
+folder_id                = "<your-folder-id>"
+service_account_key_file = "<path-to-sa-key.json>"
+zone                     = "ru-central1-a"
+name_prefix              = "assistant-dev"
+subnet_cidr              = "10.10.0.0/24"
+image_id                 = "fd8d8i53l8m2l6s0m5sf" # Ubuntu 22.04 LTS (example)
+repo_url                 = "https://github.com/<org>/<repo>.git"
+repo_ref                 = "trunk"
+telegram_bot_token       = "<telegram-token>"
