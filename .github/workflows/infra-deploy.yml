@@ -1,0 +1,104 @@
+name: infra-deploy
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-deploy.yml'
+      - 'Makefile'
+  push:
+    branches: [trunk]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-deploy.yml'
+      - 'Makefile'
+
+jobs:
+  terraform-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Write YC SA key
+        run: |
+          cat > yc-sa-key.json <<'JSON'
+          ${{ secrets.YC_SA_KEY_JSON }}
+          JSON
+
+      - name: Terraform fmt
+        run: terraform -chdir=infra/terraform/envs/${{ matrix.env }} fmt -check -recursive
+
+      - name: Terraform init
+        run: |
+          terraform -chdir=infra/terraform/envs/${{ matrix.env }} init \
+            -backend-config="bucket=${{ secrets.YC_TF_BACKEND_BUCKET }}" \
+            -backend-config="region=ru-central1" \
+            -backend-config="endpoint=storage.yandexcloud.net" \
+            -backend-config="key=personal-assistant/${{ matrix.env }}/terraform.tfstate" \
+            -backend-config="access_key=${{ secrets.YC_TF_BACKEND_ACCESS_KEY }}" \
+            -backend-config="secret_key=${{ secrets.YC_TF_BACKEND_SECRET_KEY }}" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_credentials_validation=true"
+
+      - name: Terraform validate
+        run: terraform -chdir=infra/terraform/envs/${{ matrix.env }} validate
+
+      - name: Terraform plan
+        run: terraform -chdir=infra/terraform/envs/${{ matrix.env }} plan -input=false
+        env:
+          TF_VAR_cloud_id: ${{ secrets.YC_CLOUD_ID }}
+          TF_VAR_folder_id: ${{ secrets.YC_FOLDER_ID }}
+          TF_VAR_zone: ${{ secrets.YC_ZONE }}
+          TF_VAR_image_id: ${{ secrets.YC_IMAGE_ID }}
+          TF_VAR_repo_url: ${{ secrets.APP_REPO_URL }}
+          TF_VAR_repo_ref: trunk
+          TF_VAR_telegram_bot_token: ${{ secrets.TG_BOT_TOKEN }}
+          TF_VAR_subnet_cidr: ${{ matrix.env == 'prod' && '10.20.0.0/24' || '10.10.0.0/24' }}
+          TF_VAR_name_prefix: ${{ matrix.env == 'prod' && 'assistant-prod' || 'assistant-dev' }}
+          TF_VAR_service_account_key_file: ${{ github.workspace }}/yc-sa-key.json
+
+  terraform-apply-prod:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/trunk'
+    needs: terraform-check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Write YC SA key
+        run: |
+          cat > yc-sa-key.json <<'JSON'
+          ${{ secrets.YC_SA_KEY_JSON }}
+          JSON
+
+      - name: Terraform init (prod)
+        run: |
+          terraform -chdir=infra/terraform/envs/prod init \
+            -backend-config="bucket=${{ secrets.YC_TF_BACKEND_BUCKET }}" \
+            -backend-config="region=ru-central1" \
+            -backend-config="endpoint=storage.yandexcloud.net" \
+            -backend-config="key=personal-assistant/prod/terraform.tfstate" \
+            -backend-config="access_key=${{ secrets.YC_TF_BACKEND_ACCESS_KEY }}" \
+            -backend-config="secret_key=${{ secrets.YC_TF_BACKEND_SECRET_KEY }}" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_credentials_validation=true"
+
+      - name: Terraform apply (prod)
+        run: terraform -chdir=infra/terraform/envs/prod apply -auto-approve -input=false
+        env:
+          TF_VAR_cloud_id: ${{ secrets.YC_CLOUD_ID }}
+          TF_VAR_folder_id: ${{ secrets.YC_FOLDER_ID }}
+          TF_VAR_zone: ${{ secrets.YC_ZONE }}
+          TF_VAR_image_id: ${{ secrets.YC_IMAGE_ID }}
+          TF_VAR_repo_url: ${{ secrets.APP_REPO_URL }}
+          TF_VAR_repo_ref: trunk
+          TF_VAR_telegram_bot_token: ${{ secrets.TG_BOT_TOKEN }}
+          TF_VAR_subnet_cidr: 10.20.0.0/24
+          TF_VAR_name_prefix: assistant-prod
+          TF_VAR_service_account_key_file: ${{ github.workspace }}/yc-sa-key.json

@@ -10,6 +10,7 @@ from personal_assistant.repositories.json_repo import (
 )
 from personal_assistant.services.importer import NoteImporter
 from personal_assistant.services.reporting import build_weekly_report
+from personal_assistant.services.telegram_bot import run_telegram_bot
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -29,6 +30,9 @@ def build_parser() -> argparse.ArgumentParser:
     remind = sub.add_parser("remind", help="Generate reminder digest")
     remind.add_argument("--mode", choices=["on-demand", "scheduled"], default="on-demand")
 
+    tg = sub.add_parser("telegram-bot", help="Run Telegram bot in long-polling mode")
+    tg.add_argument("--token", default=None, help="Telegram bot token (fallback: TELEGRAM_BOT_TOKEN)")
+
     return parser
 
 
@@ -43,9 +47,10 @@ def run() -> int:
     _ = event_repo
 
     if args.command == "import-notes":
-        importer = NoteImporter(note_repo)
+        importer = NoteImporter(note_repo, task_repo, event_repo)
         imported, skipped = importer.import_path(Path(args.path))
-        print(f"Imported: {imported}, skipped: {skipped}")
+        created_tasks = len(task_repo.list_tasks())
+        print(f"Imported: {imported}, skipped: {skipped}, total tasks: {created_tasks}")
         return 0
 
     if args.command == "review-extraction":
@@ -70,6 +75,10 @@ def run() -> int:
         report = build_weekly_report(task_repo.list_tasks())
         print(f"Reminder mode: {args.mode}")
         print(report)
+        return 0
+
+    if args.command == "telegram-bot":
+        run_telegram_bot(data_dir=data_dir, token=args.token)
         return 0
 
     parser.print_help()
