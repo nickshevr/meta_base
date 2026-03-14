@@ -43,9 +43,10 @@ def run() -> int:
     _ = event_repo
 
     if args.command == "import-notes":
-        importer = NoteImporter(note_repo)
+        importer = NoteImporter(note_repo, task_repo, event_repo)
         imported, skipped = importer.import_path(Path(args.path))
-        print(f"Imported: {imported}, skipped: {skipped}")
+        created_tasks = len(task_repo.list_tasks())
+        print(f"Imported: {imported}, skipped: {skipped}, total tasks: {created_tasks}")
         return 0
 
     if args.command == "review-extraction":
