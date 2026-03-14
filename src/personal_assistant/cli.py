@@ -10,6 +10,7 @@ from personal_assistant.repositories.json_repo import (
 )
 from personal_assistant.services.importer import NoteImporter
 from personal_assistant.services.reporting import build_weekly_report
+from personal_assistant.services.telegram_bot import run_telegram_bot
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     remind = sub.add_parser("remind", help="Generate reminder digest")
     remind.add_argument("--mode", choices=["on-demand", "scheduled"], default="on-demand")
+
+    tg = sub.add_parser("telegram-bot", help="Run Telegram bot in long-polling mode")
+    tg.add_argument("--token", default=None, help="Telegram bot token (fallback: TELEGRAM_BOT_TOKEN)")
 
     return parser
 
@@ -71,6 +75,10 @@ def run() -> int:
         report = build_weekly_report(task_repo.list_tasks())
         print(f"Reminder mode: {args.mode}")
         print(report)
+        return 0
+
+    if args.command == "telegram-bot":
+        run_telegram_bot(data_dir=data_dir, token=args.token)
         return 0
 
     parser.print_help()
