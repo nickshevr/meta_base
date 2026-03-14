@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.assistant_data/
+weekly_review.md
