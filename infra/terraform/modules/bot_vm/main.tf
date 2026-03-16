@@ -6,7 +6,6 @@ terraform {
     }
   }
 }
-
 resource "yandex_compute_disk" "boot" {
   name     = "${var.name_prefix}-boot"
   type     = var.boot_disk_type

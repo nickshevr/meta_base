@@ -33,12 +33,16 @@ Outputs include VM public IP.
 ```hcl
 bucket                      = "<tf-state-bucket>"
 region                      = "ru-central1"
-endpoint                    = "storage.yandexcloud.net"
+endpoints = {
+  s3 = "https://storage.yandexcloud.net"
+}
 key                         = "personal-assistant/dev/terraform.tfstate"
 access_key                  = "<access-key>"
 secret_key                  = "<secret-key>"
 skip_region_validation      = true
 skip_credentials_validation = true
+skip_requesting_account_id  = true
+skip_s3_checksum            = true
 ```
 
 ## CI/CD

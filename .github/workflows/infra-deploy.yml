@@ -20,9 +20,9 @@ jobs:
       matrix:
         env: [dev, prod]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
 
       - name: Write YC SA key
         run: |
@@ -30,20 +30,28 @@ jobs:
           ${{ secrets.YC_SA_KEY_JSON }}
           JSON
 
+      - name: Write backend config
+        run: |
+          cat > backend.hcl <<EOF
+          bucket                      = "${{ secrets.YC_TF_BACKEND_BUCKET }}"
+          region                      = "ru-central1"
+          endpoints = {
+            s3 = "https://storage.yandexcloud.net"
+          }
+          key                         = "personal-assistant/${{ matrix.env }}/terraform.tfstate"
+          access_key                  = "${{ secrets.YC_TF_BACKEND_ACCESS_KEY }}"
+          secret_key                  = "${{ secrets.YC_TF_BACKEND_SECRET_KEY }}"
+          skip_region_validation      = true
+          skip_credentials_validation = true
+          skip_requesting_account_id  = true
+          skip_s3_checksum            = true
+          EOF
+
       - name: Terraform fmt
         run: terraform -chdir=infra/terraform/envs/${{ matrix.env }} fmt -check -recursive
 
       - name: Terraform init
-        run: |
-          terraform -chdir=infra/terraform/envs/${{ matrix.env }} init \
-            -backend-config="bucket=${{ secrets.YC_TF_BACKEND_BUCKET }}" \
-            -backend-config="region=ru-central1" \
-            -backend-config="endpoint=storage.yandexcloud.net" \
-            -backend-config="key=personal-assistant/${{ matrix.env }}/terraform.tfstate" \
-            -backend-config="access_key=${{ secrets.YC_TF_BACKEND_ACCESS_KEY }}" \
-            -backend-config="secret_key=${{ secrets.YC_TF_BACKEND_SECRET_KEY }}" \
-            -backend-config="skip_region_validation=true" \
-            -backend-config="skip_credentials_validation=true"
+        run: terraform -chdir=infra/terraform/envs/${{ matrix.env }} init -backend-config="${{ github.workspace }}/backend.hcl"
 
       - name: Terraform validate
         run: terraform -chdir=infra/terraform/envs/${{ matrix.env }} validate
@@ -67,9 +75,9 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/trunk'
     needs: terraform-check
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
 
       - name: Write YC SA key
         run: |
@@ -77,17 +85,25 @@ jobs:
           ${{ secrets.YC_SA_KEY_JSON }}
           JSON
 
-      - name: Terraform init (prod)
+      - name: Write backend config
         run: |
-          terraform -chdir=infra/terraform/envs/prod init \
-            -backend-config="bucket=${{ secrets.YC_TF_BACKEND_BUCKET }}" \
-            -backend-config="region=ru-central1" \
-            -backend-config="endpoint=storage.yandexcloud.net" \
-            -backend-config="key=personal-assistant/prod/terraform.tfstate" \
-            -backend-config="access_key=${{ secrets.YC_TF_BACKEND_ACCESS_KEY }}" \
-            -backend-config="secret_key=${{ secrets.YC_TF_BACKEND_SECRET_KEY }}" \
-            -backend-config="skip_region_validation=true" \
-            -backend-config="skip_credentials_validation=true"
+          cat > backend.hcl <<EOF
+          bucket                      = "${{ secrets.YC_TF_BACKEND_BUCKET }}"
+          region                      = "ru-central1"
+          endpoints = {
+            s3 = "https://storage.yandexcloud.net"
+          }
+          key                         = "personal-assistant/prod/terraform.tfstate"
+          access_key                  = "${{ secrets.YC_TF_BACKEND_ACCESS_KEY }}"
+          secret_key                  = "${{ secrets.YC_TF_BACKEND_SECRET_KEY }}"
+          skip_region_validation      = true
+          skip_credentials_validation = true
+          skip_requesting_account_id  = true
+          skip_s3_checksum            = true
+          EOF
+
+      - name: Terraform init (prod)
+        run: terraform -chdir=infra/terraform/envs/prod init -backend-config="${{ github.workspace }}/backend.hcl"
 
       - name: Terraform apply (prod)
         run: terraform -chdir=infra/terraform/envs/prod apply -auto-approve -input=false
